@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResilientExam - Face Detection Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 20px auto;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        #video, #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: auto;
+        }
+        
+        #video {
+            position: relative;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        
+        button:hover {
+            background: #5a67d8;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .alert {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 ResilientExam - Face Detection</h1>
+        <p>North East India ke liye smart proctoring with offline support</p>
+        
+        <div class="video-wrapper">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Faces Detected</div>
+                <div class="stat-value" id="faceCount">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Status</div>
+                <div class="stat-value" id="status">🟢 Online</div>
+            </div>
+        </div>
+        
+        <div class="alert" id="alert">
+            ⚠️ <span id="alertMsg">Multiple faces detected!</span>
+        </div>
+        
+        <div class="controls">
+            <button onclick="startDetection()" id="startBtn">▶️ Start Detection</button>
+            <button onclick="stopDetection()" id="stopBtn" disabled>⏹️ Stop</button>
+            <button onclick="captureOffline()" id="offlineBtn">📸 Save to Offline</button>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #f0f4f8; border-radius: 8px;">
+            <h3>📦 Offline Saved Alerts:</h3>
+            <div id="offlineAlerts" style="max-height: 150px; overflow-y: auto;">
+                No alerts yet.
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.5"></script>
+    
+    <script>
+        let model;
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let detectionInterval;
+        let isDetecting = false;
+        let offlineAlerts = JSON.parse(localStorage.getItem('faceAlerts')) || [];
+        
+        // Load face detection model
+        async function loadModel() {
+            try {
+                model = await blazeface.load();
+                console.log("✅ Face detection model loaded");
+                startBtn.disabled = false;
+            } catch (err) {
+                console.error("❌ Model load failed:", err);
+            }
+        }
+        
+        // Start camera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                return true;
+            } catch (err) {
+                console.error("Camera error:", err);
+                alert("Camera access denied!");
+                return false;
+            }
+        }
+        
+        // Detect faces
+        async function detectFaces() {
+            if (!model || video.readyState !== 4) return;
+            
+            const predictions = await model.estimateFaces(video, false);
+            
+            // Set canvas size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw face boxes
+            predictions.forEach(pred => {
+                const start = pred.topLeft;
+                const end = pred.bottomRight;
+                const size = [end[0] - start[0], end[1] - start[1]];
+                
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(start[0], start[1], size[0], size[1]);
+                
+                // Draw landmarks
+                ctx.fillStyle = '#ff0000';
+                pred.landmarks.forEach(landmark => {
+                    ctx.fillRect(landmark[0], landmark[1], 5, 5);
+                });
+            });
+            
+            // Update face count
+            document.getElementById('faceCount').innerText = predictions.length;
+            
+            // Check for multiple faces
+            if (predictions.length > 1) {
+                document.getElementById('alert').classList.add('show');
+                document.getElementById('alertMsg').innerText = `${predictions.length} faces detected!`;
+                
+                // Save to offline storage
+                saveAlertToOffline(`${predictions.length} faces detected at ${new Date().toLocaleTimeString()}`);
+            } else if (predictions.length === 0) {
+                document.getElementById('alert').classList.add('show');
+                document.getElementById('alertMsg').innerText = 'No face detected!';
+            } else {
+                document.getElementById('alert').classList.remove('show');
+            }
+        }
+        
+        // Start detection
+        function startDetection() {
+            if (!isDetecting) {
+                isDetecting = true;
+                detectionInterval = setInterval(detectFaces, 100);
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            }
+        }
+        
+        // Stop detection
+        function stopDetection() {
+            if (isDetecting) {
+                isDetecting = false;
+                clearInterval(detectionInterval);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+        
+        // Save alert to offline storage
+        function saveAlertToOffline(message) {
+            const alert = {
+                time: new Date().toLocaleString(),
+                message: message
+            };
+            
+            offlineAlerts.push(alert);
+            localStorage.setItem('faceAlerts', JSON.stringify(offlineAlerts));
+            displayOfflineAlerts();
+        }
+        
+        // Capture current detection to offline
+        function captureOffline() {
+            const faceCount = document.getElementById('faceCount').innerText;
+            saveAlertToOffline(`Manual capture: ${faceCount} faces at ${new Date().toLocaleTimeString()}`);
+            alert('Saved to offline storage!');
+        }
+        
+        // Display offline alerts
+        function displayOfflineAlerts() {
+            const container = document.getElementById('offlineAlerts');
+            if (offlineAlerts.length === 0) {
+                container.innerHTML = 'No alerts yet.';
+                return;
+            }
+            
+            let html = '';
+            offlineAlerts.slice().reverse().slice(0, 10).forEach(alert => {
+                html += `<div style="padding: 5px; border-bottom: 1px solid #ddd;">🔴 ${alert.time}: ${alert.message}</div>`;
+            });
+            container.innerHTML = html;
+        }
+        
+        // Initialize
+        window.addEventListener('load', async () => {
+            await startCamera();
+            await loadModel();
+            displayOfflineAlerts();
+            
+            // Check internet status
+            if (!navigator.onLine) {
+                document.getElementById('status').innerHTML = '🔴 Offline';
+            }
+        });
+        
+        // Listen for online/offline
+        window.addEventListener('online', () => {
+            document.getElementById('status').innerHTML = '🟢 Online';
+        });
+        
+        window.addEventListener('offline', () => {
+            document.getElementById('status').innerHTML = '🔴 Offline';
+        });
+    </script>
+</body>
+</html>
