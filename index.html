@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoBreak Exam - AI Proctoring System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        /* ===== NAVIGATION BUTTONS ===== */
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            background: #f0f0f0;
+            color: #333;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .nav-btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .nav-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* ===== STATUS CARD ===== */
+        .status-card {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 5px solid #4CAF50;
+        }
+        
+        .status-card.offline {
+            border-left-color: #f44336;
+        }
+        
+        #status-text {
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+        
+        .online { color: #4CAF50; }
+        .offline { color: #f44336; }
+        
+        .video-container {
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        #video {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+        }
+        
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-box h3 {
+            color: #555;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        
+        .stat-box .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .alert {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin: 5px;
+        }
+        
+        .button:hover {
+            background: #5a67d8;
+        }
+        
+        .button.secondary {
+            background: #48bb78;
+        }
+        
+        .button.secondary:hover {
+            background: #38a169;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 0.95em;
+            border-left: 5px solid #2196F3;
+        }
+        
+        .feature-tag {
+            display: inline-block;
+            background: #e2e8f0;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            margin: 2px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #888;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚫 NoBreak Exam</h1>
+        <p class="subtitle">North East India Offline Proctoring System</p>
+        
+        <!-- ===== NAVIGATION BUTTONS ===== -->
+        <div class="nav-buttons">
+            <button class="nav-btn active" onclick="showSection('exam')">📝 Take Exam</button>
+            <button class="nav-btn" onclick="showSection('offline')">📴 Offline Demo</button>
+            <button class="nav-btn" onclick="showSection('face')">🔍 Face Detection</button>
+            <button class="nav-btn" onclick="showSection('about')">🌄 About & Impact</button>
+        </div>
+        
+        <!-- ===== EXAM SECTION ===== -->
+        <div id="exam-section">
+            <!-- Status Card -->
+            <div class="status-card" id="status-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="font-size: 0.9em; color: #666;">Connection Status</span>
+                        <div id="status-text" class="online">✅ Online Mode</div>
+                    </div>
+                    <div id="connection-type">📶 4G</div>
+                </div>
+            </div>
+            
+            <!-- Video Container -->
+            <div class="video-container">
+                <video id="video" autoplay playsinline></video>
+                <div class="video-overlay" id="fps-counter">Camera: Active</div>
+            </div>
+            
+            <!-- Alert Box -->
+            <div class="alert" id="alert-box">
+                ⚠️ <span id="alert-message">Multiple faces detected!</span>
+            </div>
+            
+            <!-- Stats -->
+            <div class="stats">
+                <div class="stat-box">
+                    <h3>📷 Face Detection</h3>
+                    <div class="value" id="face-count">0</div>
+                    <div style="font-size: 0.8em; color: #666;">faces detected</div>
+                </div>
+                <div class="stat-box">
+                    <h3>💾 Offline Data</h3>
+                    <div class="value" id="offline-size">0 KB</div>
+                    <div style="font-size: 0.8em; color: #666;">saved locally</div>
+                </div>
+                <div class="stat-box">
+                    <h3>🔄 Sync Status</h3>
+                    <div class="value" id="sync-status">Synced</div>
+                    <div style="font-size: 0.8em; color: #666;">last sync: now</div>
+                </div>
+            </div>
+            
+            <!-- Features Info -->
+            <div class="info-box">
+                <strong>🌄 North East Special Features:</strong><br>
+                <span class="feature-tag">📶 2G/3G/4G Adaptive</span>
+                <span class="feature-tag">💾 Offline Mode</span>
+                <span class="feature-tag">🔄 Auto-Sync</span>
+                <span class="feature-tag">⚡ Low Bandwidth</span>
+                <span class="feature-tag">🔋 Power Save</span>
+                <span class="feature-tag">🌐 Local Language Support</span>
+            </div>
+            
+            <!-- Control Buttons -->
+            <div style="text-align: center;">
+                <button class="button" onclick="startExam()">🎥 Start Exam</button>
+                <button class="button secondary" onclick="simulateOffline()">📴 Simulate Offline</button>
+                <button class="button secondary" onclick="simulateOnline()">🌐 Simulate Online</button>
+            </div>
+            
+            <!-- Offline Data Preview -->
+            <div style="margin-top: 30px; background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                <h3>📦 Saved Offline Answers:</h3>
+                <div id="saved-answers" style="max-height: 150px; overflow-y: auto; margin-top: 10px; font-size: 0.9em;">
+                    No saved answers yet.
+                </div>
+            </div>
+        </div>
+        
+        <!-- ===== OFFLINE DEMO SECTION (Initially Hidden) ===== -->
+        <div id="offline-section" style="display: none;">
+            <iframe src="offline-demo.html" style="width: 100%; height: 600px; border: none; border-radius: 10px;"></iframe>
+        </div>
+        
+        <!-- ===== FACE DETECTION SECTION (Initially Hidden) ===== -->
+        <div id="face-section" style="display: none;">
+            <iframe src="face-detect.html" style="width: 100%; height: 600px; border: none; border-radius: 10px;"></iframe>
+        </div>
+        
+        <!-- ===== ABOUT & IMPACT SECTION (Initially Hidden) ===== -->
+        <div id="about-section" style="display: none;">
+            <div style="background: #f9f9f9; padding: 30px; border-radius: 10px;">
+                <h2 style="color: #333; margin-bottom: 20px;">🌄 About NoBreak Exam</h2>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">🎯 Our Mission</h3>
+                    <p style="line-height: 1.6; color: #555;">To provide fair online examination opportunities to every student in North East India, regardless of internet connectivity issues.</p>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">🌄 Real Problems We Solve</h3>
+                    <ul style="padding-left: 20px; line-height: 1.8; color: #555;">
+                        <li><strong>Tinsukia, Assam:</strong> 4G unstable, students penalized for disconnect</li>
+                        <li><strong>Itanagar, Arunachal:</strong> Power cut + internet issues together</li>
+                        <li><strong>Kohima, Nagaland:</strong> Hilly terrain, frequent network drops</li>
+                        <li><strong>Shillong, Meghalaya:</strong> NEHU exam disaster (22,000 students affected)</li>
+                        <li><strong>Silchar, Assam:</strong> Flood season mein internet problems</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">📊 Impact Numbers</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+                        <div>
+                            <div style="font-size: 2em; font-weight: bold; color: #667eea;">17L+</div>
+                            <div style="color: #666;">Students</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 2em; font-weight: bold; color: #667eea;">500+</div>
+                            <div style="color: #666;">Colleges</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 2em; font-weight: bold; color: #667eea;">8</div>
+                            <div style="color: #666;">States</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">🔧 Key Features</h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                        <div style="background: #f0f4f8; padding: 10px; border-radius: 5px;">✅ Offline-First Architecture</div>
+                        <div style="background: #f0f4f8; padding: 10px; border-radius: 5px;">✅ Auto-Sync Technology</div>
+                        <div style="background: #f0f4f8; padding: 10px; border-radius: 5px;">✅ 2G/3G/4G Adaptive</div>
+                        <div style="background: #f0f4f8; padding: 10px; border-radius: 5px;">✅ Face Detection AI</div>
+                        <div style="background: #f0f4f8; padding: 10px; border-radius: 5px;">✅ Local Storage Backup</div>
+                        <div style="background: #f0f4f8; padding: 10px; border-radius: 5px;">✅ Multi-Language Support</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            Made for North East India | Resilient in any network condition
+        </footer>
+    </div>
+    
+    <script>
+        // Global variables
+        let videoStream = null;
+        let offlineData = [];
+        let offlineSize = 0;
+        let faceCount = 0;
+        let detectionInterval = null;
+        
+        // DOM elements
+        const video = document.getElementById('video');
+        const statusCard = document.getElementById('status-card');
+        const statusText = document.getElementById('status-text');
+        const connectionType = document.getElementById('connection-type');
+        const alertBox = document.getElementById('alert-box');
+        const alertMessage = document.getElementById('alert-message');
+        const faceCountEl = document.getElementById('face-count');
+        const offlineSizeEl = document.getElementById('offline-size');
+        const syncStatus = document.getElementById('sync-status');
+        const savedAnswersEl = document.getElementById('saved-answers');
+        
+        // ===== SECTION SWITCHING =====
+        function showSection(section) {
+            // Hide all sections
+            document.getElementById('exam-section').style.display = 'none';
+            document.getElementById('offline-section').style.display = 'none';
+            document.getElementById('face-section').style.display = 'none';
+            document.getElementById('about-section').style.display = 'none';
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected section
+            if(section === 'exam') {
+                document.getElementById('exam-section').style.display = 'block';
+                document.querySelectorAll('.nav-btn')[0].classList.add('active');
+                startCamera(); // Restart camera when coming back
+            } else if(section === 'offline') {
+                document.getElementById('offline-section').style.display = 'block';
+                document.querySelectorAll('.nav-btn')[1].classList.add('active');
+                stopCamera(); // Stop camera to save resources
+            } else if(section === 'face') {
+                document.getElementById('face-section').style.display = 'block';
+                document.querySelectorAll('.nav-btn')[2].classList.add('active');
+                stopCamera();
+            } else if(section === 'about') {
+                document.getElementById('about-section').style.display = 'block';
+                document.querySelectorAll('.nav-btn')[3].classList.add('active');
+                stopCamera();
+            }
+        }
+        
+        // ===== CAMERA CONTROL =====
+        async function startCamera() {
+            try {
+                if(!videoStream) {
+                    videoStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: true,
+                        audio: false 
+                    });
+                    video.srcObject = videoStream;
+                    console.log("✅ Camera started successfully");
+                    
+                    // Start face detection simulation
+                    startFaceDetection();
+                }
+            } catch (err) {
+                console.error("❌ Camera error:", err);
+            }
+        }
+        
+        function stopCamera() {
+            if(videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+                video.srcObject = null;
+            }
+            if(detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+        }
+        
+        // ===== INTERNET STATUS CHECK =====
+        function updateConnectionStatus() {
+            if (navigator.onLine) {
+                statusText.innerHTML = "✅ Online Mode";
+                statusText.className = "online";
+                statusCard.classList.remove('offline');
+                
+                // Simulate network speed
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                if (connection) {
+                    const speed = connection.downlink;
+                    if (speed < 0.5) connectionType.innerHTML = "📶 2G (Slow)";
+                    else if (speed < 1.5) connectionType.innerHTML = "📶 3G (Medium)";
+                    else connectionType.innerHTML = "📶 4G (Fast)";
+                } else {
+                    connectionType.innerHTML = "📶 Connected";
+                }
+                
+                // Try to sync offline data
+                syncOfflineData();
+                
+            } else {
+                statusText.innerHTML = "⚠️ Offline Mode";
+                statusText.className = "offline";
+                statusCard.classList.add('offline');
+                connectionType.innerHTML = "📴 Disconnected";
+                syncStatus.innerHTML = "Offline";
+                syncStatus.style.color = "#f44336";
+            }
+        }
+        
+        // ===== OFFLINE DATA SAVE =====
+        function saveAnswerOffline(answer) {
+            const timestamp = new Date().toLocaleTimeString();
+            const answerObj = {
+                time: timestamp,
+                answer: answer,
+                id: Date.now()
+            };
+            
+            offlineData.push(answerObj);
+            
+            // Save to localStorage - CHANGED to NoBreakExam
+            let existingData = localStorage.getItem('nobreak_exam_answers');
+            if (existingData) {
+                existingData = JSON.parse(existingData);
+                existingData.push(answerObj);
+                localStorage.setItem('nobreak_exam_answers', JSON.stringify(existingData));
+            } else {
+                localStorage.setItem('nobreak_exam_answers', JSON.stringify([answerObj]));
+            }
+            
+            // Update size
+            offlineSize += answer.length;
+            offlineSizeEl.innerHTML = Math.round(offlineSize/1024) + ' KB';
+            
+            // Update display
+            displaySavedAnswers();
+            
+            if (!navigator.onLine) {
+                alertMessage.innerHTML = "Answer saved offline. Will sync when online.";
+                alertBox.classList.add('show');
+                setTimeout(() => alertBox.classList.remove('show'), 3000);
+            }
+        }
+        
+        // ===== SYNC OFFLINE DATA =====
+        function syncOfflineData() {
+            if (navigator.onLine && offlineData.length > 0) {
+                syncStatus.innerHTML = "Syncing...";
+                syncStatus.style.color = "#ff9800";
+                
+                // Simulate sync
+                setTimeout(() => {
+                    let data = localStorage.getItem('nobreak_exam_answers');
+                    if (data) {
+                        console.log("📤 Syncing data to server:", JSON.parse(data));
+                        
+                        // Clear after sync
+                        localStorage.removeItem('nobreak_exam_answers');
+                        offlineData = [];
+                        offlineSize = 0;
+                        offlineSizeEl.innerHTML = '0 KB';
+                        
+                        syncStatus.innerHTML = "Synced";
+                        syncStatus.style.color = "#4CAF50";
+                        
+                        // Show success
+                        alertMessage.innerHTML = "✅ All offline data synced successfully!";
+                        alertBox.classList.add('show');
+                        setTimeout(() => alertBox.classList.remove('show'), 3000);
+                        
+                        displaySavedAnswers();
+                    }
+                }, 2000);
+            }
+        }
+        
+        // ===== FACE DETECTION SIMULATION =====
+        function startFaceDetection() {
+            if(detectionInterval) clearInterval(detectionInterval);
+            
+            detectionInterval = setInterval(() => {
+                if (videoStream) {
+                    // Random face detection for demo
+                    faceCount = Math.random() > 0.7 ? 2 : 1;
+                    
+                    if (Math.random() > 0.9) {
+                        faceCount = 3;
+                        alertMessage.innerHTML = "⚠️ Multiple faces detected! (2+ persons)";
+                        alertBox.classList.add('show');
+                    } else if (Math.random() > 0.95) {
+                        alertMessage.innerHTML = "👀 Looking away from screen!";
+                        alertBox.classList.add('show');
+                    } else {
+                        alertBox.classList.remove('show');
+                    }
+                    
+                    faceCountEl.innerHTML = faceCount;
+                    
+                    // Save activity when offline
+                    if (!navigator.onLine) {
+                        saveAnswerOffline(`Face detection: ${faceCount} faces at ${new Date().toLocaleTimeString()}`);
+                    }
+                }
+            }, 3000);
+        }
+        
+        // ===== DISPLAY SAVED ANSWERS =====
+        function displaySavedAnswers() {
+            let data = localStorage.getItem('nobreak_exam_answers');
+            if (data) {
+                data = JSON.parse(data);
+                if (data.length > 0) {
+                    let html = '';
+                    data.slice(-5).forEach(item => {
+                        html += `<div style="padding: 5px; border-bottom: 1px solid #eee;">🕒 ${item.time}: ${item.answer.substring(0,50)}...</div>`;
+                    });
+                    savedAnswersEl.innerHTML = html;
+                } else {
+                    savedAnswersEl.innerHTML = 'No saved answers yet.';
+                }
+            } else {
+                savedAnswersEl.innerHTML = 'No saved answers yet.';
+            }
+        }
+        
+        // ===== SIMULATE OFFLINE =====
+        function simulateOffline() {
+            window.dispatchEvent(new Event('offline'));
+            updateConnectionStatus();
+            
+            alertMessage.innerHTML = "📴 Offline mode activated - Saving locally";
+            alertBox.classList.add('show');
+            
+            saveAnswerOffline("Test answer saved while offline");
+        }
+        
+        // ===== SIMULATE ONLINE =====
+        function simulateOnline() {
+            window.dispatchEvent(new Event('online'));
+            updateConnectionStatus();
+        }
+        
+        // ===== START EXAM =====
+        function startExam() {
+            alertMessage.innerHTML = "✅ Exam started successfully!";
+            alertBox.classList.add('show');
+            setTimeout(() => alertBox.classList.remove('show'), 3000);
+            
+            saveAnswerOffline("EXAM STARTED at " + new Date().toLocaleString());
+        }
+        
+        // ===== INITIAL SETUP =====
+        window.addEventListener('load', () => {
+            startCamera();
+            updateConnectionStatus();
+            displaySavedAnswers();
+            
+            // Load saved size
+            let data = localStorage.getItem('nobreak_exam_answers');
+            if (data) {
+                data = JSON.parse(data);
+                offlineSize = JSON.stringify(data).length;
+                offlineSizeEl.innerHTML = Math.round(offlineSize/1024) + ' KB';
+            }
+            
+            // Show exam section by default
+            showSection('exam');
+        });
+        
+        // Listen for connection changes
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+        
+        // Check connection type if available
+        if ('connection' in navigator) {
+            const connection = navigator.connection;
+            connection.addEventListener('change', updateConnectionStatus);
+        }
+    </script>
+</body>
+</html>

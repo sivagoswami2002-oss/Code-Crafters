@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResilientExam - Face Detection Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 20px auto;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        #video, #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: auto;
+        }
+        
+        #video {
+            position: relative;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            transform: scaleX(-1); /* Mirror effect to match video */
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .alert {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            background: #e2e8f0;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 ResilientExam - Face Detection</h1>
+        <p>North East India ke liye smart proctoring with offline support</p>
+        
+        <div class="video-wrapper">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <!-- Loading indicator -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            Loading face detection model...
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Faces Detected</div>
+                <div class="stat-value" id="faceCount">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Status</div>
+                <div class="stat-value" id="status">🟢 Online</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Confidence</div>
+                <div class="stat-value" id="confidence">-</div>
+            </div>
+        </div>
+        
+        <div class="alert" id="alert">
+            ⚠️ <span id="alertMsg">Multiple faces detected!</span>
+        </div>
+        
+        <div class="controls">
+            <button onclick="startDetection()" id="startBtn" disabled>▶️ Start Detection</button>
+            <button onclick="stopDetection()" id="stopBtn" disabled>⏹️ Stop</button>
+            <button onclick="captureOffline()" id="offlineBtn" disabled>📸 Save to Offline</button>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #f0f4f8; border-radius: 8px;">
+            <h3>📦 Offline Saved Alerts:</h3>
+            <div id="offlineAlerts" style="max-height: 150px; overflow-y: auto;">
+                No alerts yet.
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load TensorFlow.js and BlazeFace from correct CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.5/dist/blazeface.min.js"></script>
+    
+    <script>
+        // Global variables
+        let model;
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let detectionInterval;
+        let isDetecting = false;
+        let offlineAlerts = JSON.parse(localStorage.getItem('faceAlerts')) || [];
+        let modelLoaded = false;
+        
+        // DOM elements
+        const loadingEl = document.getElementById('loading');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const offlineBtn = document.getElementById('offlineBtn');
+        const faceCountEl = document.getElementById('faceCount');
+        const confidenceEl = document.getElementById('confidence');
+        const alertBox = document.getElementById('alert');
+        const alertMsg = document.getElementById('alertMsg');
+        
+        // Load face detection model
+        async function loadModel() {
+            try {
+                loadingEl.style.display = 'block';
+                console.log("Loading BlazeFace model...");
+                
+                // Load the model
+                model = await blazeface.load();
+                
+                console.log("✅ Face detection model loaded");
+                modelLoaded = true;
+                
+                // Hide loading indicator
+                loadingEl.style.display = 'none';
+                
+                // Enable start button
+                startBtn.disabled = false;
+                offlineBtn.disabled = false;
+                
+            } catch (err) {
+                console.error("❌ Model load failed:", err);
+                loadingEl.innerHTML = '❌ Failed to load model. Please refresh the page.';
+            }
+        }
+        
+        // Start camera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    } 
+                });
+                video.srcObject = stream;
+                
+                // Wait for video to be ready
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        // Set canvas dimensions
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        resolve(true);
+                    };
+                });
+            } catch (err) {
+                console.error("Camera error:", err);
+                alert("Camera access denied! Please allow camera permission.");
+                return false;
+            }
+        }
+        
+        // Detect faces
+        async function detectFaces() {
+            if (!model || !modelLoaded || video.readyState !== 4) return;
+            
+            try {
+                // Make sure video dimensions are available
+                if (video.videoWidth === 0 || video.videoHeight === 0) return;
+                
+                // Set canvas size to match video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // Get predictions from BlazeFace
+                const predictions = await model.estimateFaces(video, false);
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Update face count
+                faceCountEl.innerText = predictions.length;
+                
+                // Draw face boxes and landmarks
+                predictions.forEach((pred, index) => {
+                    // Get face box coordinates
+                    const topLeft = pred.topLeft;
+                    const bottomRight = pred.bottomRight;
+                    
+                    // Calculate box dimensions
+                    const width = bottomRight[0] - topLeft[0];
+                    const height = bottomRight[1] - topLeft[1];
+                    
+                    // Draw rectangle around face
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(topLeft[0], topLeft[1], width, height);
+                    
+                    // Draw confidence score
+                    if (pred.probability) {
+                        ctx.fillStyle = '#00ff00';
+                        ctx.font = '16px Arial';
+                        ctx.fillText(`Face ${index + 1}: ${Math.round(pred.probability[0] * 100)}%`, topLeft[0], topLeft[1] - 10);
+                        
+                        // Update confidence display
+                        if (index === 0) {
+                            confidenceEl.innerText = Math.round(pred.probability[0] * 100) + '%';
+                        }
+                    }
+                    
+                    // Draw face landmarks (eyes, nose, mouth)
+                    if (pred.landmarks) {
+                        ctx.fillStyle = '#ff0000';
+                        pred.landmarks.forEach(landmark => {
+                            ctx.beginPath();
+                            ctx.arc(landmark[0], landmark[1], 3, 0, 2 * Math.PI);
+                            ctx.fill();
+                        });
+                    }
+                });
+                
+                // Handle different face detection scenarios
+                if (predictions.length > 1) {
+                    // Multiple faces detected
+                    alertBox.classList.add('show');
+                    alertMsg.innerText = `${predictions.length} faces detected! This is not allowed.`;
+                    
+                    // Save to offline storage
+                    saveAlertToOffline(`${predictions.length} faces detected at ${new Date().toLocaleTimeString()}`);
+                    
+                } else if (predictions.length === 0) {
+                    // No face detected
+                    alertBox.classList.add('show');
+                    alertMsg.innerText = 'No face detected! Please look at the camera.';
+                    confidenceEl.innerText = '-';
+                    
+                } else if (predictions.length === 1) {
+                    // Single face detected - good
+                    alertBox.classList.remove('show');
+                }
+                
+            } catch (error) {
+                console.error("Detection error:", error);
+            }
+        }
+        
+        // Start detection
+        function startDetection() {
+            if (!isDetecting && modelLoaded) {
+                isDetecting = true;
+                detectionInterval = setInterval(detectFaces, 100); // Run detection every 100ms
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                console.log("Face detection started");
+            }
+        }
+        
+        // Stop detection
+        function stopDetection() {
+            if (isDetecting) {
+                isDetecting = false;
+                clearInterval(detectionInterval);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                faceCountEl.innerText = '0';
+                confidenceEl.innerText = '-';
+                alertBox.classList.remove('show');
+                console.log("Face detection stopped");
+            }
+        }
+        
+        // Save alert to offline storage
+        function saveAlertToOffline(message) {
+            const alert = {
+                time: new Date().toLocaleString(),
+                message: message
+            };
+            
+            offlineAlerts.push(alert);
+            
+            // Keep only last 50 alerts
+            if (offlineAlerts.length > 50) {
+                offlineAlerts = offlineAlerts.slice(-50);
+            }
+            
+            localStorage.setItem('faceAlerts', JSON.stringify(offlineAlerts));
+            displayOfflineAlerts();
+        }
+        
+        // Capture current detection to offline
+        function captureOffline() {
+            const faceCount = faceCountEl.innerText;
+            const confidence = confidenceEl.innerText;
+            saveAlertToOffline(`Manual capture: ${faceCount} faces (confidence: ${confidence}) at ${new Date().toLocaleTimeString()}`);
+            
+            // Show feedback
+            alertMsg.innerText = 'Saved to offline storage!';
+            alertBox.classList.add('show');
+            setTimeout(() => {
+                if (faceCount !== '1') {
+                    alertBox.classList.remove('show');
+                }
+            }, 2000);
+        }
+        
+        // Display offline alerts
+        function displayOfflineAlerts() {
+            const container = document.getElementById('offlineAlerts');
+            if (offlineAlerts.length === 0) {
+                container.innerHTML = 'No alerts yet.';
+                return;
+            }
+            
+            let html = '';
+            offlineAlerts.slice().reverse().slice(0, 10).forEach(alert => {
+                html += `<div style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 0.9em;">
+                    🔴 ${alert.time}: ${alert.message}
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+        
+        // Clear offline alerts
+        function clearOfflineAlerts() {
+            if (confirm('Clear all saved alerts?')) {
+                offlineAlerts = [];
+                localStorage.removeItem('faceAlerts');
+                displayOfflineAlerts();
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('load', async () => {
+            console.log("Page loaded, starting camera...");
+            
+            // Start camera first
+            const cameraStarted = await startCamera();
+            
+            if (cameraStarted) {
+                console.log("Camera started, loading model...");
+                // Then load the model
+                await loadModel();
+            }
+            
+            displayOfflineAlerts();
+            
+            // Check internet status
+            if (!navigator.onLine) {
+                document.getElementById('status').innerHTML = '🔴 Offline';
+            }
+            
+            // Add clear button to offline alerts section
+            const offlineSection = document.querySelector('.container > div:last-child');
+            const clearBtn = document.createElement('button');
+            clearBtn.innerText = '🗑️ Clear All';
+            clearBtn.style.marginTop = '10px';
+            clearBtn.style.background = '#f56565';
+            clearBtn.onclick = clearOfflineAlerts;
+            offlineSection.appendChild(clearBtn);
+        });
+        
+        // Listen for online/offline
+        window.addEventListener('online', () => {
+            document.getElementById('status').innerHTML = '🟢 Online';
+        });
+        
+        window.addEventListener('offline', () => {
+            document.getElementById('status').innerHTML = '🔴 Offline';
+        });
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            stopDetection();
+        });
+    </script>
+</body>
+</html>
